@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SwiftER COPS Pendency Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="cops_live_data.js?v=20260707"></script>
   <style>
     :root {
       --bg: #eef2f7;
@@ -423,7 +422,6 @@
       <input id="fileInput" class="admin-only" type="file" accept=".xlsx,.xls,.csv">
       <button id="exportBaseBtn" class="admin-only" disabled>Export Base Tracking Data</button>
       <button id="exportSummaryBtn" class="admin-only" disabled>Export Summary Data</button>
-      <button id="exportSnapshotBtn" class="admin-only" disabled>Export Live Snapshot</button>
       <button id="exportRcaBtn" class="admin-only" disabled>Export RCA CSV</button>
       <button id="clearRcaBtn" class="admin-only" disabled>Clear RCA</button>
     </div>
@@ -691,7 +689,7 @@
       "codBucketTable", "codHubTable", "codDetailTable", "copsTable", "caseDetail",
       "selectedAwb", "rcaType", "facilityWrap", "facilityId", "techWrap", "techDesc",
       "copsRemark", "ownerName", "followupStatus", "formError", "saveRcaBtn",
-      "uploadMode", "exportBaseBtn", "exportSummaryBtn", "exportSnapshotBtn", "exportRcaBtn", "clearRcaBtn", "derivedStatusFilter", "productFilter", "territoryFilter", "lmFilter", "stageFilter",
+      "uploadMode", "exportBaseBtn", "exportSummaryBtn", "exportRcaBtn", "clearRcaBtn", "derivedStatusFilter", "productFilter", "territoryFilter", "lmFilter", "stageFilter",
       "directionFilter", "agingFilter", "resetFilters", "adminBtn", "viewerBtn", "rolePill", "rcaSearch",
       "adminModal", "adminForm", "adminPassword", "adminAuthError", "adminCancel"
     ].map(id => [id, document.getElementById(id)]));
@@ -731,7 +729,6 @@
     els.saveRcaBtn.addEventListener("click", saveRca);
     els.exportBaseBtn.addEventListener("click", exportBaseTrackingData);
     els.exportSummaryBtn.addEventListener("click", exportSummaryData);
-    els.exportSnapshotBtn.addEventListener("click", exportLiveSnapshotData);
     els.exportRcaBtn.addEventListener("click", exportRcaCsv);
     els.clearRcaBtn.addEventListener("click", clearRca);
     document.querySelectorAll("[data-export-table]").forEach(btn => {
@@ -755,10 +752,6 @@
     async function initializeData() {
       const sharedLoaded = await restoreSharedShipmentData();
       if (sharedLoaded) return;
-      if (Array.isArray(window.COPS_LIVE_SHIPMENT_ROWS) && window.COPS_LIVE_SHIPMENT_ROWS.length) {
-        await loadRows(window.COPS_LIVE_SHIPMENT_ROWS, window.COPS_LIVE_SHIPMENT_NAME || "Published shipment snapshot", "replace", { persist: false, sourceLabel: "published snapshot" });
-        return;
-      }
       const localLoaded = await restoreStoredShipmentData();
       if (localLoaded) return;
       resetViewerLoadState("No stored shipment DB found yet. Admin needs to upload the latest shipment Excel.");
@@ -1007,7 +1000,6 @@
       els.emptyState.classList.add("hidden");
       els.exportBaseBtn.disabled = false;
       els.exportSummaryBtn.disabled = false;
-      els.exportSnapshotBtn.disabled = false;
       els.exportRcaBtn.disabled = false;
       els.clearRcaBtn.disabled = false;
       if (options.persist !== false) {
@@ -1811,18 +1803,6 @@
       const headers = ["Hub", "Total Pending", "FM", "MM", "LM", "Short Received", "Loss", "Wrong Facility", "RTO Depart Facility", "Backdate OOR", "No Scan", "RCA Pending"];
       const rows = buildHubSummary(state.filtered).map(r => [r.hub, r.total, r.fm, r.mm, r.lm, r.short, r.loss, r.wrongFacility, r.rtoDepart, r.backdateOor, r.noScan, r.rcaPending]);
       exportAoaWorkbook(`hub_bucket_summary_${new Date().toISOString().slice(0, 10)}`, headers, rows);
-    }
-
-    function exportLiveSnapshotData() {
-      if (!state.isAdmin) return alert("Only admin can export live snapshot.");
-      if (!state.raw.length) return alert("No shipment data loaded.");
-      const fileName = `COPS live shipment snapshot ${new Date().toISOString().slice(0, 10)}`;
-      const rowsJson = JSON.stringify(state.raw).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
-      const content = [
-        "window.COPS_LIVE_SHIPMENT_NAME = " + JSON.stringify(fileName) + ";",
-        "window.COPS_LIVE_SHIPMENT_ROWS = " + rowsJson + ";"
-      ].join("\n");
-      download("cops_live_data.js", content, "text/javascript");
     }
 
     function clearRca() {

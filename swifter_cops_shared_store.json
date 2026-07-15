@@ -4,7 +4,6 @@
 
 - `index.html` - production SwiftER COPS dashboard.
 - `swifter_cops_pendency_dashboard.html` - same dashboard with explicit file name.
-- `cops_live_data.js` - empty fallback snapshot file.
 - `swifter_cops_shared_store.json` - shared DB placeholder updated by the Netlify Function.
 - `netlify/functions/shipment-store.js` - GitHub-backed shared storage function.
 - `netlify.toml`, `_headers`, `_redirects`, `package.json` - Netlify deployment files.
@@ -15,6 +14,7 @@
 2. Upload every file and folder from this deployment folder to the repository root.
 3. Keep `netlify/functions/shipment-store.js` in the exact same path.
 4. Keep `swifter_cops_shared_store.json` in the repository root.
+5. Delete any old `cops_live_data.js` from the repository root; this SwiftER production bundle does not use it.
 
 ## Netlify Setup
 
