@@ -1,2 +1,15 @@
-window.COPS_LIVE_SHIPMENT_NAME = "";
-window.COPS_LIVE_SHIPMENT_ROWS = [];
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+
+/index.html
+  Cache-Control: no-store, max-age=0
+
+/swifter_cops_pendency_dashboard.html
+  Cache-Control: no-store, max-age=0
+
+/cops_live_data.js
+  Cache-Control: no-store, max-age=0
