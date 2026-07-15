@@ -10,7 +10,6 @@ Required root files:
 - package.json
 - _headers
 - _redirects
-- swifter_cops_shared_store.json
 - PRODUCTION_DEPLOYMENT_README.md
 
 Required function path:
@@ -19,4 +18,5 @@ Required function path:
 Important:
 - Delete netlify.toml from the GitHub repo root. This production bundle does not need it.
 - Delete any old cops_live_data.js from the repo root. This production bundle no longer uses it.
+- No GitHub token is required. Shared storage uses Netlify Blobs.
 - If Netlify still mentions netlify.toml, then a broken netlify.toml file is still committed in the GitHub repo root and must be deleted.

@@ -4,9 +4,7 @@
 
 - `index.html` - production SwiftER COPS dashboard.
 - `swifter_cops_pendency_dashboard.html` - same dashboard with explicit file name.
-- `swifter_cops_shared_store.json` - shared DB placeholder updated by the Netlify Function.
-- `swifter_cops_shared_store_chunks/` - created automatically in GitHub when large DB uploads are saved in chunks.
-- `netlify/functions/shipment-store.js` - GitHub-backed shared storage function.
+- `netlify/functions/shipment-store.js` - Netlify Blobs shared storage function.
 - `_headers`, `_redirects`, `package.json` - Netlify deployment files.
 
 ## GitHub Setup
@@ -14,9 +12,8 @@
 1. Create a GitHub repository, recommended name: `SwiftER-Cops-Pendency-Dashboard`.
 2. Upload every file and folder from this deployment folder to the repository root.
 3. Keep `netlify/functions/shipment-store.js` in the exact same path.
-4. Keep `swifter_cops_shared_store.json` in the repository root.
-5. Delete any old `cops_live_data.js` from the repository root; this SwiftER production bundle does not use it.
-6. Delete `netlify.toml` from the repository root; this bundle does not need it and uses Netlify defaults.
+4. Delete any old `cops_live_data.js` from the repository root; this SwiftER production bundle does not use it.
+5. Delete `netlify.toml` from the repository root; this bundle does not need it and uses Netlify defaults.
 
 ## Netlify Setup
 
@@ -26,25 +23,20 @@ Use Git-based Netlify deployment.
 - Publish directory: `.`
 - Functions directory: `netlify/functions`
 
-Add these Netlify environment variables:
+No GitHub token is required. Shared viewer storage uses Netlify Blobs.
 
-- `SWIFTER_GITHUB_TOKEN` - GitHub token with repository contents read/write access.
-- `SWIFTER_GITHUB_OWNER` - GitHub owner/user name. Optional if using default `bharatiomkar18-hue`.
-- `SWIFTER_GITHUB_REPO` - repository name. Optional if using default `SwiftER-Cops-Pendency-Dashboard`.
-- `SWIFTER_GITHUB_BRANCH` - optional, defaults to `main`.
+Optional Netlify environment variable:
+
 - `SWIFTER_ADMIN_PASSWORD_HASH` - optional SHA-256 hash for admin password.
-
-The function also accepts the older `COPS_GITHUB_*` variable names as fallback, but SwiftER names are preferred for this dashboard.
 
 ## Smoke Test
 
 1. Open the Netlify URL.
 2. Confirm the dashboard loads with no preview data.
 3. Open `/.netlify/functions/shipment-store?health=1`.
-4. Confirm `tokenConfigured` is `true`.
-5. Confirm `owner`, `repo`, and `branch` exactly match the GitHub repository connected to Netlify.
-6. Unlock admin mode.
-7. Upload the SwiftER shipment Excel using Replace Data.
-8. Confirm filters are based on uploaded data.
-9. Open the same URL in another browser or incognito window.
-10. Confirm the uploaded data loads for viewer mode.
+4. Confirm `storage` is `netlify-blobs` and `tokenRequired` is `false`.
+5. Unlock admin mode.
+6. Upload the SwiftER shipment Excel using Replace Data.
+7. Confirm filters are based on uploaded data.
+8. Open the same URL in another browser or incognito window.
+9. Confirm the uploaded data loads for viewer mode.

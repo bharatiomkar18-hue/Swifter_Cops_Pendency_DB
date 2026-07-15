@@ -1,5 +1,8 @@
 {
   "name": "swifter-cops-pendency-dashboard",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "@netlify/blobs": "^8.2.0"
+  }
 }
