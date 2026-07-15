@@ -177,6 +177,19 @@ exports.handler = async function handler(event) {
     if (event.httpMethod === "GET") {
       const qs = event.queryStringParameters || {};
       if (qs.health === "1") {
+        let githubAccess = null;
+        if (qs.github === "1") {
+          const repoCheck = await githubRequest(config, STORE_PATH, {
+            method: "GET",
+            headers: { "Cache-Control": "no-cache" }
+          });
+          githubAccess = {
+            canReachRepository: repoCheck.response.ok || repoCheck.response.status === 404,
+            status: repoCheck.response.status,
+            message: repoCheck.data && repoCheck.data.message ? repoCheck.data.message : "",
+            storeFileExists: repoCheck.response.ok
+          };
+        }
         return json(200, {
           ok: true,
           owner: config.owner,
@@ -184,7 +197,8 @@ exports.handler = async function handler(event) {
           branch: config.branch,
           tokenConfigured: Boolean(config.token),
           storePath: STORE_PATH,
-          chunkDir: CHUNK_DIR
+          chunkDir: CHUNK_DIR,
+          githubAccess
         });
       }
       if (qs.uploadId && qs.chunkIndex !== undefined) {
