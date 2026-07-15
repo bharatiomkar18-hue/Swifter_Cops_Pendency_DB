@@ -19,4 +19,15 @@ Important:
 - Delete netlify.toml from the GitHub repo root. This production bundle does not need it.
 - Delete any old cops_live_data.js from the repo root. This production bundle no longer uses it.
 - No GitHub token is required. Shared storage uses Netlify Blobs.
+- Add these two Netlify environment variables before final testing:
+  - NETLIFY_BLOBS_SITE_ID = your Netlify Project ID / Site ID
+  - NETLIFY_BLOBS_TOKEN = your Netlify Personal Access Token
+- Redeploy after adding both environment variables.
+- Health check URL after redeploy:
+  /.netlify/functions/shipment-store?health=1
+- Health check must show:
+  - storage: netlify-blobs
+  - tokenRequired: true
+  - blobsSiteConfigured: true
+  - blobsTokenConfigured: true
 - If Netlify still mentions netlify.toml, then a broken netlify.toml file is still committed in the GitHub repo root and must be deleted.

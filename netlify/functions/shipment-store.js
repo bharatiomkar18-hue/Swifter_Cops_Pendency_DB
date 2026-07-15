@@ -22,11 +22,19 @@ function hash(value) {
 
 function getConfig() {
   return {
-    adminHash: process.env.SWIFTER_ADMIN_PASSWORD_HASH || process.env.COPS_ADMIN_PASSWORD_HASH || DEFAULT_ADMIN_PASSWORD_HASH
+    adminHash: process.env.SWIFTER_ADMIN_PASSWORD_HASH || process.env.COPS_ADMIN_PASSWORD_HASH || DEFAULT_ADMIN_PASSWORD_HASH,
+    blobsSiteID: process.env.NETLIFY_BLOBS_SITE_ID || process.env.SITE_ID || "",
+    blobsToken: process.env.NETLIFY_BLOBS_TOKEN || process.env.NETLIFY_AUTH_TOKEN || ""
   };
 }
 
-function getShipmentStore() {
+function getShipmentStore(config) {
+  if (config.blobsSiteID && config.blobsToken) {
+    return getStore(STORE_NAME, {
+      siteID: config.blobsSiteID,
+      token: config.blobsToken
+    });
+  }
   return getStore(STORE_NAME);
 }
 
@@ -47,7 +55,7 @@ function chunkKey(uploadId, chunkIndex) {
 
 exports.handler = async function handler(event) {
   const config = getConfig();
-  const store = getShipmentStore();
+  const store = getShipmentStore(config);
 
   try {
     if (event.httpMethod === "OPTIONS") {
@@ -70,7 +78,9 @@ exports.handler = async function handler(event) {
           storage: "netlify-blobs",
           storeName: STORE_NAME,
           latestExists,
-          tokenRequired: false
+          tokenRequired: true,
+          blobsSiteConfigured: Boolean(config.blobsSiteID),
+          blobsTokenConfigured: Boolean(config.blobsToken)
         });
       }
 
@@ -143,7 +153,8 @@ exports.handler = async function handler(event) {
       error: "Shipment store function failed.",
       detail: err && err.message ? err.message : String(err),
       storage: "netlify-blobs",
-      tokenRequired: false
+      tokenRequired: true,
+      requiredEnvironmentVariables: ["NETLIFY_BLOBS_SITE_ID", "NETLIFY_BLOBS_TOKEN"]
     });
   }
 };
