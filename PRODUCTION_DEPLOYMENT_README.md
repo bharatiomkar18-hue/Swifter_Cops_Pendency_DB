@@ -40,10 +40,11 @@ The function also accepts the older `COPS_GITHUB_*` variable names as fallback, 
 
 1. Open the Netlify URL.
 2. Confirm the dashboard loads with no preview data.
-3. Unlock admin mode.
-4. Upload the SwiftER shipment Excel using Replace Data.
-5. Confirm filters are based on uploaded data.
-6. Confirm Derived Status defaults to Open Shipment and can filter Closed, Not Picked, and Cancelled.
-7. Open the same URL in another browser or incognito window.
-8. Confirm the uploaded data loads for viewer mode.
-9. Check `/.netlify/functions/shipment-store`; it should return JSON, not a 404.
+3. Open `/.netlify/functions/shipment-store?health=1`.
+4. Confirm `tokenConfigured` is `true`.
+5. Confirm `owner`, `repo`, and `branch` exactly match the GitHub repository connected to Netlify.
+6. Unlock admin mode.
+7. Upload the SwiftER shipment Excel using Replace Data.
+8. Confirm filters are based on uploaded data.
+9. Open the same URL in another browser or incognito window.
+10. Confirm the uploaded data loads for viewer mode.

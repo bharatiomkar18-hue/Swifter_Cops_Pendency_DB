@@ -176,6 +176,17 @@ exports.handler = async function handler(event) {
 
     if (event.httpMethod === "GET") {
       const qs = event.queryStringParameters || {};
+      if (qs.health === "1") {
+        return json(200, {
+          ok: true,
+          owner: config.owner,
+          repo: config.repo,
+          branch: config.branch,
+          tokenConfigured: Boolean(config.token),
+          storePath: STORE_PATH,
+          chunkDir: CHUNK_DIR
+        });
+      }
       if (qs.uploadId && qs.chunkIndex !== undefined) {
         const data = await readGithubText(config, chunkPath(qs.uploadId, qs.chunkIndex));
         return json(200, { data });
@@ -231,6 +242,12 @@ exports.handler = async function handler(event) {
     return json(500, {
       error: "Shipment store function failed. Confirm GitHub token and repository settings are correct.",
       detail: err && err.message ? err.message : String(err),
+      githubTarget: {
+        owner: config.owner,
+        repo: config.repo,
+        branch: config.branch,
+        tokenConfigured: Boolean(config.token)
+      },
       requiredEnvironmentVariables: ["SWIFTER_GITHUB_TOKEN"],
       optionalEnvironmentVariables: ["SWIFTER_GITHUB_OWNER", "SWIFTER_GITHUB_REPO", "SWIFTER_GITHUB_BRANCH"]
     });
