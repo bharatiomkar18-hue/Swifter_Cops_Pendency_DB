@@ -5,6 +5,7 @@ const DEFAULT_OWNER = "bharatiomkar18-hue";
 const DEFAULT_REPO = "SwiftER-Cops-Pendency-Dashboard";
 const DEFAULT_BRANCH = "main";
 const STORE_PATH = "swifter_cops_shared_store.json";
+const CHUNK_DIR = "swifter_cops_shared_store_chunks";
 
 function json(statusCode, body) {
   return {
@@ -105,36 +106,64 @@ async function readStore(config) {
   return record;
 }
 
-async function writeStore(config, record) {
+async function readGithubText(config, path) {
+  const { response, data } = await githubRequest(config, path, {
+    method: "GET",
+    headers: { "Cache-Control": "no-cache" }
+  });
+  if (!response.ok) {
+    const message = data && data.message ? data.message : `GitHub read failed with ${response.status}`;
+    throw new Error(message);
+  }
+  if (data.content) return decodeBase64(data.content);
+  if (data.download_url) return readGithubRawFile(config, data.download_url);
+  return "";
+}
+
+async function writeGithubText(config, path, text, message) {
   if (!config.token) {
     throw new Error("Missing SWIFTER_GITHUB_TOKEN. Add a GitHub token in Netlify environment variables.");
   }
 
   let sha = "";
-  const existing = await githubRequest(config, STORE_PATH, { method: "GET" });
+  const existing = await githubRequest(config, path, { method: "GET" });
   if (existing.response.ok && existing.data && existing.data.sha) sha = existing.data.sha;
   if (existing.response.status !== 404 && !existing.response.ok) {
-    const message = existing.data && existing.data.message ? existing.data.message : `GitHub lookup failed with ${existing.response.status}`;
-    throw new Error(message);
+    const errMessage = existing.data && existing.data.message ? existing.data.message : `GitHub lookup failed with ${existing.response.status}`;
+    throw new Error(errMessage);
   }
 
   const body = {
-    message: `Update COPS shipment DB ${record.savedAt}`,
+    message,
     branch: config.branch,
-    content: encodeBase64(JSON.stringify(record, null, 2)),
+    content: encodeBase64(text),
     ...(sha ? { sha } : {})
   };
 
-  const { response, data } = await githubRequest(config, STORE_PATH, {
+  const { response, data } = await githubRequest(config, path, {
     method: "PUT",
     body: JSON.stringify(body)
   });
 
   if (!response.ok) {
-    const message = data && data.message ? data.message : `GitHub write failed with ${response.status}`;
-    throw new Error(message);
+    const errMessage = data && data.message ? data.message : `GitHub write failed with ${response.status}`;
+    throw new Error(errMessage);
   }
   return data;
+}
+
+async function writeStore(config, record) {
+  return writeGithubText(config, STORE_PATH, JSON.stringify(record, null, 2), `Update SwiftER shipment DB ${record.savedAt}`);
+}
+
+function safeUploadId(value) {
+  const id = String(value || "").replace(/[^a-zA-Z0-9_-]/g, "");
+  if (!id) throw new Error("Missing chunk upload id.");
+  return id.slice(0, 80);
+}
+
+function chunkPath(uploadId, chunkIndex) {
+  return `${CHUNK_DIR}/${safeUploadId(uploadId)}_${String(Number(chunkIndex)).padStart(5, "0")}.txt`;
 }
 
 exports.handler = async function handler(event) {
@@ -146,6 +175,11 @@ exports.handler = async function handler(event) {
     }
 
     if (event.httpMethod === "GET") {
+      const qs = event.queryStringParameters || {};
+      if (qs.uploadId && qs.chunkIndex !== undefined) {
+        const data = await readGithubText(config, chunkPath(qs.uploadId, qs.chunkIndex));
+        return json(200, { data });
+      }
       const record = await readStore(config);
       if (!record) return json(200, { hasData: false });
       return json(200, Object.assign({ hasData: true }, record));
@@ -161,8 +195,22 @@ exports.handler = async function handler(event) {
         return json(400, { error: "Invalid JSON payload." });
       }
 
+      if (body.operation === "chunk") {
+        const uploadId = safeUploadId(body.uploadId);
+        const chunkIndex = Number(body.chunkIndex);
+        const chunkTotal = Number(body.chunkTotal);
+        const data = String(body.data || "");
+        if (!Number.isInteger(chunkIndex) || chunkIndex < 0 || !Number.isInteger(chunkTotal) || chunkTotal < 1 || !data) {
+          return json(400, { error: "Invalid chunk payload." });
+        }
+        await writeGithubText(config, chunkPath(uploadId, chunkIndex), data, `Upload SwiftER shipment DB chunk ${chunkIndex + 1}/${chunkTotal}`);
+        return json(200, { ok: true, uploadId, chunkIndex, chunkTotal });
+      }
+
       if (!body.payload || !body.payload.encoding || !body.payload.data) {
-        return json(400, { error: "Missing shipment payload." });
+        if (!body.payload || !body.payload.encoding || !body.payload.chunked) {
+          return json(400, { error: "Missing shipment payload." });
+        }
       }
 
       const record = {
@@ -183,8 +231,8 @@ exports.handler = async function handler(event) {
     return json(500, {
       error: "Shipment store function failed. Confirm GitHub token and repository settings are correct.",
       detail: err && err.message ? err.message : String(err),
-      requiredEnvironmentVariables: ["COPS_GITHUB_TOKEN"],
-      optionalEnvironmentVariables: ["COPS_GITHUB_OWNER", "COPS_GITHUB_REPO", "COPS_GITHUB_BRANCH"]
+      requiredEnvironmentVariables: ["SWIFTER_GITHUB_TOKEN"],
+      optionalEnvironmentVariables: ["SWIFTER_GITHUB_OWNER", "SWIFTER_GITHUB_REPO", "SWIFTER_GITHUB_BRANCH"]
     });
   }
 };

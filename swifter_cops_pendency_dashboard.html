@@ -36,34 +36,39 @@
       z-index: 10;
       background: linear-gradient(135deg, #182230 0%, #243b68 62%, #087c7c 100%);
       border-bottom: 0;
-      padding: 14px 24px;
+      padding: 8px 18px;
       display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 16px;
+      grid-template-columns: minmax(260px, 1fr) auto;
+      gap: 12px;
       align-items: center;
       color: #fff;
     }
 
     h1 {
       margin: 0;
-      font-size: 22px;
-      line-height: 1.2;
+      font-size: 18px;
+      line-height: 1.05;
       letter-spacing: 0;
+      white-space: nowrap;
     }
 
     header .subline {
       color: #d6e0f3;
+      max-width: 760px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .subline {
       color: var(--muted);
-      font-size: 13px;
-      margin-top: 4px;
+      font-size: 12px;
+      margin-top: 2px;
     }
 
     .upload {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
       justify-content: flex-end;
       flex-wrap: wrap;
@@ -77,8 +82,8 @@
       color: var(--ink);
     }
 
-    input[type="file"] { max-width: 290px; padding: 8px; }
-    select, input { padding: 8px 10px; min-height: 38px; }
+    input[type="file"] { max-width: 260px; padding: 6px 8px; }
+    select, input { padding: 6px 9px; min-height: 34px; }
     select[multiple] { min-height: 96px; padding: 6px; }
     select[multiple] option { padding: 5px 6px; border-radius: 4px; }
     textarea { width: 100%; min-height: 78px; padding: 9px 10px; resize: vertical; }
@@ -88,8 +93,8 @@
       border-radius: 6px;
       background: #fff;
       color: var(--ink);
-      min-height: 38px;
-      padding: 8px 12px;
+      min-height: 34px;
+      padding: 6px 10px;
       font: inherit;
       cursor: pointer;
     }
@@ -395,12 +400,13 @@
       .toolbar { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
       .metrics { grid-template-columns: repeat(3, minmax(130px, 1fr)); }
       .upload { justify-content: start; }
+      header .subline { white-space: normal; }
     }
 
     @media (max-width: 650px) {
       main, header { padding-left: 12px; padding-right: 12px; }
       .toolbar, .metrics { grid-template-columns: 1fr; }
-      h1 { font-size: 20px; }
+      h1 { font-size: 17px; white-space: normal; }
       .metric .value { font-size: 24px; }
     }
   </style>
@@ -2552,6 +2558,9 @@
     async function saveSharedShipmentData(fileName, mode) {
       if (!state.adminPassword) throw new Error("Admin password is required to save shared data.");
       const packed = await packRowsForStore(state.raw);
+      const payload = packed.data && packed.data.length > 700000
+        ? await uploadSharedPayloadChunks(packed)
+        : packed;
       const response = await fetch("/.netlify/functions/shipment-store", {
         method: "POST",
         headers: {
@@ -2563,17 +2572,57 @@
           mode,
           savedAt: new Date().toISOString(),
           rowCount: state.raw.length,
-          payload: packed
+          payload
         })
       });
       if (!response.ok) {
         let message = await response.text();
         try {
           const parsed = JSON.parse(message);
-          message = parsed.error || message;
+          message = [parsed.error, parsed.detail].filter(Boolean).join(" | ") || message;
         } catch {}
         throw new Error(`HTTP ${response.status}: ${message || "Shared save failed"}`);
       }
+    }
+
+    async function uploadSharedPayloadChunks(packed) {
+      const uploadId = `swifter_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const chunkSize = 500000;
+      const chunks = Math.ceil(packed.data.length / chunkSize);
+      for (let chunkIndex = 0; chunkIndex < chunks; chunkIndex += 1) {
+        const data = packed.data.slice(chunkIndex * chunkSize, (chunkIndex + 1) * chunkSize);
+        els.fileMeta.textContent = `Saving shared DB chunk ${chunkIndex + 1} / ${chunks}...`;
+        await nextFrame();
+        const response = await fetch("/.netlify/functions/shipment-store", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Admin-Password": state.adminPassword
+          },
+          body: JSON.stringify({
+            operation: "chunk",
+            uploadId,
+            chunkIndex,
+            chunkTotal: chunks,
+            data
+          })
+        });
+        if (!response.ok) {
+          let message = await response.text();
+          try {
+            const parsed = JSON.parse(message);
+            message = [parsed.error, parsed.detail].filter(Boolean).join(" | ") || message;
+          } catch {}
+          throw new Error(`HTTP ${response.status}: chunk ${chunkIndex + 1}/${chunks} failed: ${message || "Shared chunk save failed"}`);
+        }
+      }
+      return {
+        encoding: packed.encoding,
+        chunked: true,
+        uploadId,
+        chunks,
+        chunkSize
+      };
     }
 
     async function restoreSharedShipmentData() {
@@ -2630,6 +2679,18 @@
     }
 
     async function unpackRowsFromStore(payload) {
+      if (payload.chunked) {
+        let data = "";
+        const chunks = Number(payload.chunks || 0);
+        for (let chunkIndex = 0; chunkIndex < chunks; chunkIndex += 1) {
+          els.fileMeta.textContent = `Loading shared DB chunk ${chunkIndex + 1} / ${chunks}...`;
+          const response = await fetch(`/.netlify/functions/shipment-store?uploadId=${encodeURIComponent(payload.uploadId)}&chunkIndex=${chunkIndex}`, { cache: "no-store" });
+          if (!response.ok) throw new Error(`Stored DB chunk ${chunkIndex + 1}/${chunks} could not be loaded.`);
+          const chunk = await response.json();
+          data += chunk.data || "";
+        }
+        payload = { encoding: payload.encoding, data };
+      }
       if (payload.encoding === "gzip-base64") {
         if (!window.DecompressionStream) throw new Error("This browser cannot read compressed stored shipment data.");
         const bytes = base64ToUint8Array(payload.data);

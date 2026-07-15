@@ -5,6 +5,7 @@
 - `index.html` - production SwiftER COPS dashboard.
 - `swifter_cops_pendency_dashboard.html` - same dashboard with explicit file name.
 - `swifter_cops_shared_store.json` - shared DB placeholder updated by the Netlify Function.
+- `swifter_cops_shared_store_chunks/` - created automatically in GitHub when large DB uploads are saved in chunks.
 - `netlify/functions/shipment-store.js` - GitHub-backed shared storage function.
 - `_headers`, `_redirects`, `package.json` - Netlify deployment files.
 
