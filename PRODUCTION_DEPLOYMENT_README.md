@@ -69,3 +69,5 @@ Expected health check after setup:
   "blobsTokenConfigured": true
 }
 ```
+
+If the health check opens without crashing but shows `ok: false`, the deployment is correct but one or both Blobs environment variables are still missing. Add them in Netlify and redeploy.

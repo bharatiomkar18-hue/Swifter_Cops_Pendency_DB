@@ -38,6 +38,21 @@ function getShipmentStore(config) {
   return getStore(STORE_NAME);
 }
 
+function blobsStatus(config) {
+  return {
+    storage: "netlify-blobs",
+    storeName: STORE_NAME,
+    tokenRequired: true,
+    blobsSiteConfigured: Boolean(config.blobsSiteID),
+    blobsTokenConfigured: Boolean(config.blobsToken),
+    requiredEnvironmentVariables: ["NETLIFY_BLOBS_SITE_ID", "NETLIFY_BLOBS_TOKEN"]
+  };
+}
+
+function hasManualBlobsConfig(config) {
+  return Boolean(config.blobsSiteID && config.blobsToken);
+}
+
 function isAuthorized(event, config) {
   const supplied = event.headers["x-admin-password"] || event.headers["X-Admin-Password"] || "";
   return hash(supplied) === config.adminHash;
@@ -55,7 +70,6 @@ function chunkKey(uploadId, chunkIndex) {
 
 exports.handler = async function handler(event) {
   const config = getConfig();
-  const store = getShipmentStore(config);
 
   try {
     if (event.httpMethod === "OPTIONS") {
@@ -67,22 +81,32 @@ exports.handler = async function handler(event) {
 
       if (qs.health === "1") {
         let latestExists = false;
-        try {
-          const latest = await store.get(LATEST_KEY, { type: "json" });
-          latestExists = Boolean(latest && latest.payload);
-        } catch {
-          latestExists = false;
+        if (hasManualBlobsConfig(config)) {
+          try {
+            const store = getShipmentStore(config);
+            const latest = await store.get(LATEST_KEY, { type: "json" });
+            latestExists = Boolean(latest && latest.payload);
+          } catch {
+            latestExists = false;
+          }
         }
         return json(200, {
-          ok: true,
-          storage: "netlify-blobs",
-          storeName: STORE_NAME,
+          ok: hasManualBlobsConfig(config),
+          message: hasManualBlobsConfig(config) ? "Netlify Blobs is configured." : "Add NETLIFY_BLOBS_SITE_ID and NETLIFY_BLOBS_TOKEN in Netlify environment variables, then redeploy.",
           latestExists,
-          tokenRequired: true,
-          blobsSiteConfigured: Boolean(config.blobsSiteID),
-          blobsTokenConfigured: Boolean(config.blobsToken)
+          ...blobsStatus(config)
         });
       }
+
+      if (!hasManualBlobsConfig(config)) {
+        return json(500, {
+          error: "Netlify Blobs is not configured.",
+          message: "Add NETLIFY_BLOBS_SITE_ID and NETLIFY_BLOBS_TOKEN in Netlify environment variables, then redeploy.",
+          ...blobsStatus(config)
+        });
+      }
+
+      const store = getShipmentStore(config);
 
       if (qs.uploadId && qs.chunkIndex !== undefined) {
         const data = await store.get(chunkKey(qs.uploadId, qs.chunkIndex), { type: "text" });
@@ -97,6 +121,16 @@ exports.handler = async function handler(event) {
 
     if (event.httpMethod === "POST") {
       if (!isAuthorized(event, config)) return json(401, { error: "Unauthorized admin upload." });
+
+      if (!hasManualBlobsConfig(config)) {
+        return json(500, {
+          error: "Netlify Blobs is not configured.",
+          message: "Add NETLIFY_BLOBS_SITE_ID and NETLIFY_BLOBS_TOKEN in Netlify environment variables, then redeploy.",
+          ...blobsStatus(config)
+        });
+      }
+
+      const store = getShipmentStore(config);
 
       let body;
       try {
@@ -152,9 +186,7 @@ exports.handler = async function handler(event) {
     return json(500, {
       error: "Shipment store function failed.",
       detail: err && err.message ? err.message : String(err),
-      storage: "netlify-blobs",
-      tokenRequired: true,
-      requiredEnvironmentVariables: ["NETLIFY_BLOBS_SITE_ID", "NETLIFY_BLOBS_TOKEN"]
+      ...blobsStatus(config)
     });
   }
 };
