@@ -30,7 +30,8 @@ function getConfig() {
 
 function getShipmentStore(config) {
   if (config.blobsSiteID && config.blobsToken) {
-    return getStore(STORE_NAME, {
+    return getStore({
+      name: STORE_NAME,
       siteID: config.blobsSiteID,
       token: config.blobsToken
     });
@@ -81,19 +82,28 @@ exports.handler = async function handler(event) {
 
       if (qs.health === "1") {
         let latestExists = false;
+        let storeReachable = false;
+        let storeError = "";
         if (hasManualBlobsConfig(config)) {
           try {
             const store = getShipmentStore(config);
             const latest = await store.get(LATEST_KEY, { type: "json" });
             latestExists = Boolean(latest && latest.payload);
-          } catch {
+            storeReachable = true;
+          } catch (err) {
+            storeError = err && err.message ? err.message : String(err);
+            storeReachable = false;
             latestExists = false;
           }
         }
         return json(200, {
-          ok: hasManualBlobsConfig(config),
-          message: hasManualBlobsConfig(config) ? "Netlify Blobs is configured." : "Add NETLIFY_BLOBS_SITE_ID and NETLIFY_BLOBS_TOKEN in Netlify environment variables, then redeploy.",
+          ok: hasManualBlobsConfig(config) && storeReachable,
+          message: hasManualBlobsConfig(config)
+            ? (storeReachable ? "Netlify Blobs is configured and reachable." : "Netlify Blobs variables exist, but store access failed.")
+            : "Add NETLIFY_BLOBS_SITE_ID and NETLIFY_BLOBS_TOKEN in Netlify environment variables, then redeploy.",
           latestExists,
+          storeReachable,
+          storeError,
           ...blobsStatus(config)
         });
       }

@@ -51,23 +51,25 @@ Optional Netlify environment variable:
 2. Confirm the dashboard loads with no preview data.
 3. Open `/.netlify/functions/shipment-store?health=1`.
 4. Confirm `storage` is `netlify-blobs`.
-5. Confirm `tokenRequired`, `blobsSiteConfigured`, and `blobsTokenConfigured` are all `true`.
-5. Unlock admin mode.
-6. Upload the SwiftER shipment Excel using Replace Data.
-7. Confirm filters are based on uploaded data.
-8. Open the same URL in another browser or incognito window.
-9. Confirm the uploaded data loads for viewer mode.
+5. Confirm `tokenRequired`, `blobsSiteConfigured`, `blobsTokenConfigured`, and `storeReachable` are all `true`.
+6. Unlock admin mode.
+7. Upload the SwiftER shipment Excel using Replace Data.
+8. Confirm filters are based on uploaded data.
+9. Open the same URL in another browser or incognito window.
+10. Confirm the uploaded data loads for viewer mode.
 
 Expected health check after setup:
 
 ```json
 {
   "ok": true,
+  "message": "Netlify Blobs is configured and reachable.",
   "storage": "netlify-blobs",
   "tokenRequired": true,
   "blobsSiteConfigured": true,
-  "blobsTokenConfigured": true
+  "blobsTokenConfigured": true,
+  "storeReachable": true
 }
 ```
 
-If the health check opens without crashing but shows `ok: false`, the deployment is correct but one or both Blobs environment variables are still missing. Add them in Netlify and redeploy.
+If the health check opens without crashing but shows `ok: false`, the deployment is correct but Blobs is not usable yet. Check `blobsSiteConfigured`, `blobsTokenConfigured`, and `storeError`, then fix the Netlify environment variables and redeploy.
